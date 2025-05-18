@@ -1,0 +1,15 @@
+DELIMITER $$
+
+CREATE PROCEDURE GetHRReport()
+BEGIN
+    SELECT e.name, e.department, AVG(p.score) AS avg_score,
+           COUNT(t.training_id) AS trainings_done,
+           COUNT(l.leave_id) AS leaves_taken
+    FROM employees e
+    LEFT JOIN performance p ON e.employee_id = p.employee_id
+    LEFT JOIN training t ON e.employee_id = t.employee_id AND t.completion_status = 'Completed'
+    LEFT JOIN leaves l ON e.employee_id = l.employee_id
+    GROUP BY e.employee_id;
+END$$
+
+DELIMITER ;
