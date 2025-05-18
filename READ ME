@@ -36,11 +36,129 @@ An ER diagram illustrating the relationships is located in [`/docs/er_diagram.pn
    ```bash
    mysql -u your_user -p < schema/create_tables.sql
    
-2. Load sample data for testing:
+2. Load data for testing:
    ```bash
-mysql -u your_user -p < data/sample_data.sql
+   mysql -u your_user -p < data/sample_data.sql
 
-3. Deploy triggers and stored procedures:
+3. Deploy stored procedures:
   ```bash
-mysql -u your_user -p < triggers/tenure_trigger.sql
-mysql -u your_user -p < procedures/hr_reports.sql
+   mysql -u your_user -p < triggers/tenure_trigger.sql
+   mysql -u your_user -p < procedures/hr_reports.sql
+
+Key Features & Queries
+1. Rolling Average Performance Scores
+Calculates the rolling average of the last 3 performance reviews for each employee.
+
+sql
+Copy
+Edit
+SELECT 
+    employee_id,
+    review_date,
+    score,
+    ROUND(AVG(score) OVER (PARTITION BY employee_id ORDER BY review_date ROWS BETWEEN 2 PRECEDING AND CURRENT ROW), 2) AS rolling_avg_score
+FROM performance;
+Full query in queries/rolling_avg_performance.sql.
+
+2. Top 10% Performers
+Identifies employees in the top decile by average score.
+
+sql
+Copy
+Edit
+WITH avg_scores AS (
+    SELECT employee_id, AVG(score) AS avg_score
+    FROM performance
+    GROUP BY employee_id
+)
+SELECT employee_id, avg_score
+FROM (
+    SELECT employee_id, avg_score,
+           NTILE(10) OVER (ORDER BY avg_score DESC) AS decile
+    FROM avg_scores
+) sub
+WHERE decile = 1;
+Full query in queries/top_performers.sql.
+
+3. Org Chart
+Generates a reporting hierarchy using a recursive CTE.
+
+sql
+Copy
+Edit
+WITH RECURSIVE org_chart AS (
+    SELECT employee_id, name, manager_id, 0 AS level
+    FROM employees
+    WHERE manager_id IS NULL
+
+    UNION ALL
+
+    SELECT e.employee_id, e.name, e.manager_id, oc.level + 1
+    FROM employees e
+    INNER JOIN org_chart oc ON e.manager_id = oc.employee_id
+)
+SELECT * FROM org_chart ORDER BY level;
+Full query in queries/org_chart.sql.
+
+4. Frequent Short Leaves
+Flags employees with 3 or more sick leaves in the current year.
+
+sql
+Copy
+Edit
+SELECT employee_id, COUNT(*) AS sick_leave_count
+FROM leaves
+WHERE leave_type = 'Sick' AND YEAR(leave_date) = YEAR(CURDATE())
+GROUP BY employee_id
+HAVING COUNT(*) >= 3;
+Full query in queries/frequent_leaves.sql.
+
+Triggers
+Tenure Category Auto-Update
+Automatically sets the tenure_category based on years of service when a new employee is added.
+
+sql
+Copy
+Edit
+CREATE TRIGGER trg_update_tenure
+BEFORE INSERT ON employees
+FOR EACH ROW
+BEGIN
+    DECLARE yrs INT;
+    SET yrs = TIMESTAMPDIFF(YEAR, NEW.hire_date, CURDATE());
+
+    IF yrs < 1 THEN
+        SET NEW.tenure_category = 'New';
+    ELSEIF yrs BETWEEN 1 AND 5 THEN
+        SET NEW.tenure_category = 'Mid';
+    ELSE
+        SET NEW.tenure_category = 'Veteran';
+    END IF;
+END;
+Full trigger code in triggers/tenure_trigger.sql.
+
+Stored Procedures
+HR Summary Report
+Generates a summary report of employee performance, training completion, and leave counts.
+
+sql
+Copy
+Edit
+CREATE PROCEDURE GetHRReport()
+BEGIN
+    SELECT e.name, e.department, AVG(p.score) AS avg_score,
+           COUNT(t.training_id) AS trainings_done,
+           COUNT(l.leave_id) AS leaves_taken
+    FROM employees e
+    LEFT JOIN performance p ON e.employee_id = p.employee_id
+    LEFT JOIN training t ON e.employee_id = t.employee_id AND t.completion_status = 'Completed'
+    LEFT JOIN leaves l ON e.employee_id = l.employee_id
+    GROUP BY e.employee_id;
+END;
+Full procedure in procedures/hr_reports.sql.
+Sample Results
+Employee	Department	Avg Score	Trainings Completed	Leaves Taken
+Alice	HR	8.5	2	1
+Bob	Engineering	7.2	1	3
+
+
