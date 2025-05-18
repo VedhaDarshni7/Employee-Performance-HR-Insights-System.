@@ -1,0 +1,19 @@
+DELIMITER $$
+
+CREATE TRIGGER trg_update_tenure
+BEFORE INSERT ON employees
+FOR EACH ROW
+BEGIN
+    DECLARE yrs INT;
+    SET yrs = TIMESTAMPDIFF(YEAR, NEW.hire_date, CURDATE());
+
+    IF yrs < 1 THEN
+        SET NEW.tenure_category = 'New';
+    ELSEIF yrs BETWEEN 1 AND 5 THEN
+        SET NEW.tenure_category = 'Mid';
+    ELSE
+        SET NEW.tenure_category = 'Veteran';
+    END IF;
+END$$
+
+DELIMITER ;
