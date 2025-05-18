@@ -1,0 +1,9 @@
+WITH avg_scores AS (
+    SELECT employee_id, AVG(score) AS avg_score
+    FROM performance
+    GROUP BY employee_id
+)
+SELECT employee_id, avg_score,
+       NTILE(10) OVER (ORDER BY avg_score DESC) AS performance_decile
+FROM avg_scores
+WHERE NTILE(10) OVER (ORDER BY avg_score DESC) = 1;
