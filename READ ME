@@ -35,9 +35,11 @@ An ER diagram illustrating the relationships is located in [`/docs/er_diagram.pn
 1. Run the schema script to create tables:  
    ```bash
    mysql -u your_user -p < schema/create_tables.sql
+   
 2. Load sample data for testing:
    ```bash
 mysql -u your_user -p < data/sample_data.sql
+
 3. Deploy triggers and stored procedures:
   ```bash
 mysql -u your_user -p < triggers/tenure_trigger.sql
