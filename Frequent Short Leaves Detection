@@ -1,0 +1,5 @@
+SELECT employee_id, COUNT(*) AS short_leave_count
+FROM leaves
+WHERE leave_type = 'Sick' AND leave_date BETWEEN '2024-01-01' AND '2024-12-31'
+GROUP BY employee_id
+HAVING COUNT(*) >= 3;
